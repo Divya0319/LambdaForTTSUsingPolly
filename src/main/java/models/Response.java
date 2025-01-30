@@ -1,19 +1,23 @@
 package models;
 
 public class Response {
-    private String status;
+    private Status status;
     private String fileUrl;
 
-    public Response(String status, String fileUrl) {
+    public Response(Status status, String fileUrl) {
         this.status = status;
         this.fileUrl = fileUrl;
     }
 
-    public String getStatus() {
+    public Response() {
+
+    }
+
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 
