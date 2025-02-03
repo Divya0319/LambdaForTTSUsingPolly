@@ -11,6 +11,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.polly.PollyClient;
 import software.amazon.awssdk.services.polly.model.OutputFormat;
+import software.amazon.awssdk.services.polly.model.PollyException;
 import software.amazon.awssdk.services.polly.model.SynthesizeSpeechRequest;
 import software.amazon.awssdk.services.polly.model.SynthesizeSpeechResponse;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -32,12 +33,19 @@ public class TextToSpeechLambda implements RequestHandler<Request, Response> {
 
         String audioFileKey = generateSpeechAndUploadToS3(inputText, voiceId);
 
-        S3UrlGenerator s3UrlGenerator = new S3UrlGenerator();
-        URL fileUrl = s3UrlGenerator.generatePreSignedUrl(S3_BUCKET_NAME, audioFileKey, Region.AP_NORTHEAST_1);
-
+        String fileUrl;
         Response response = new Response();
-        response.setStatus(Status.SUCCESS);
-        response.setFileUrl(fileUrl.toString());
+
+        if(audioFileKey.startsWith("polly-audio")) {
+            S3UrlGenerator s3UrlGenerator = new S3UrlGenerator();
+            fileUrl = s3UrlGenerator.generatePreSignedUrl(S3_BUCKET_NAME, audioFileKey, Region.AP_NORTHEAST_1).toString();
+            response.setStatus(Status.SUCCESS);
+        } else {
+            fileUrl = audioFileKey;
+            response.setStatus(Status.FAILURE);
+        }
+
+        response.setFileUrl(fileUrl);
         return response;
     }
 
@@ -69,9 +77,15 @@ public class TextToSpeechLambda implements RequestHandler<Request, Response> {
 
             return audioFileKey;
 
+        } catch(PollyException pEx) {
+            System.out.println("");
+            if(pEx.getMessage().contains("does not support") || pEx.getMessage().contains("failed to satisfy constraint"))
+                return "This voice is not supported";
         } catch (IOException e) {
             throw new RuntimeException("IOException: " + e.getMessage());
         }
+
+        return "Unknown error occurred";
     }
 
     public S3Client createS3Client() {
